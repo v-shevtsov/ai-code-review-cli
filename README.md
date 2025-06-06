@@ -36,18 +36,14 @@ ollama pull codellama:7b-instruct
 ### 3. Install CLI Tool
 
 ```bash
-# Clone repository
-git clone <repository-url>
-cd ai-code-review-cli
+# Install globally from npm
+npm install -g @woobbe/ai-code-review-cli
 
-# Install dependencies
-npm install
+# Or install locally in project
+npm install --save-dev @woobbe/ai-code-review-cli
 
-# Build
-npm run build
-
-# Global installation
-npm link
+# Or use npx (no installation required)
+npx @woobbe/ai-code-review-cli review
 ```
 
 ## Quick Start

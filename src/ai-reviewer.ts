@@ -87,7 +87,8 @@ export class AIReviewer {
           stream: false,
           options: {
             temperature: this.config.temperature,
-            num_predict: this.config.maxTokens,
+            num_predict: Math.min(this.config.maxTokens || 2048, 2048), // Ограничиваем размер ответа
+            stop: ['\n\n---', '```\n\n'], // Останавливаем на маркерах конца
           },
         },
         {
@@ -121,36 +122,30 @@ Changes:
 ${diff.changes.slice(0, 10000)} ${diff.changes.length > 10000 ? '\n... (file truncated)' : ''}
 \`\`\`
 
-IMPORTANT: Reply ONLY in JSON format without additional text:
+IMPORTANT: Reply ONLY with valid JSON. No additional text before or after. Format:
 {
   "reviews": [
     {
-      "severity": "error|warning|info",
+      "severity": "error",
       "line": 123,
-             "message": "Problem description",
-       "suggestion": "Fix suggestion",
-      "category": "bugs|performance|security|style|architecture"
+      "message": "Short problem description",
+      "suggestion": "How to fix it",
+      "category": "bugs"
     }
   ]
-}`;
+}
+
+If no issues found, return: {"reviews":[]}
+Keep messages short and avoid special characters in strings.`;
   }
 
   private parseAIResponse(file: string, response: string): ReviewResult[] {
     try {
       // Ищем JSON в ответе более аккуратно
-      let jsonText = response.trim();
+      let jsonText = this.extractJSON(response);
       
-      // Убираем markdown если есть
-      if (jsonText.includes('```json')) {
-        const match = jsonText.match(/```json\s*([\s\S]*?)\s*```/);
-        if (match) jsonText = match[1];
-      }
-      
-      // Если JSON не найден, ищем объект {}
-      if (!jsonText.startsWith('{')) {
-        const jsonMatch = jsonText.match(/\{[\s\S]*\}/);
-        if (jsonMatch) jsonText = jsonMatch[0];
-      }
+      // Попытка починить незавершенные строки
+      jsonText = this.fixIncompleteJSON(jsonText);
 
       const parsed: AIResponse = JSON.parse(jsonText);
       
@@ -174,11 +169,81 @@ IMPORTANT: Reply ONLY in JSON format without additional text:
         {
           file,
           severity: 'info' as const,
-          message: `AI analysis (text): ${response.slice(0, 200)}${response.length > 200 ? '...' : ''}`,
+          message: `AI analysis failed - model response was malformed`,
           category: 'general',
         },
       ];
     }
+  }
+
+  private extractJSON(response: string): string {
+    let jsonText = response.trim();
+    
+    // Убираем markdown если есть
+    if (jsonText.includes('```json')) {
+      const match = jsonText.match(/```json\s*([\s\S]*?)\s*```/);
+      if (match) jsonText = match[1];
+    } else if (jsonText.includes('```')) {
+      const match = jsonText.match(/```\s*([\s\S]*?)\s*```/);
+      if (match) jsonText = match[1];
+    }
+    
+    // Если JSON не найден, ищем объект {}
+    if (!jsonText.startsWith('{')) {
+      const jsonMatch = jsonText.match(/\{[\s\S]*\}/);
+      if (jsonMatch) jsonText = jsonMatch[0];
+    }
+
+    return jsonText.trim();
+  }
+
+  private fixIncompleteJSON(jsonText: string): string {
+    try {
+      // Простая проверка - пробуем парсить как есть
+      JSON.parse(jsonText);
+      return jsonText;
+    } catch (error) {
+      // Если ошибка с незавершенной строкой, пытаемся починить
+      if (error instanceof SyntaxError && error.message.includes('Unterminated string')) {
+        // Находим последнюю открытую кавычку и закрываем её
+        const lastQuoteIndex = jsonText.lastIndexOf('"');
+        const afterLastQuote = jsonText.slice(lastQuoteIndex + 1);
+        
+        // Если после последней кавычки нет закрывающей кавычки перед } или ]
+        if (afterLastQuote && !afterLastQuote.includes('"') && (afterLastQuote.includes('}') || afterLastQuote.includes(']'))) {
+          const fixedJson = jsonText.slice(0, lastQuoteIndex + 1) + '"' + afterLastQuote;
+          
+          try {
+            JSON.parse(fixedJson);
+            return fixedJson;
+          } catch {
+            // Если не помогло, просто обрезаем до последней валидной части
+            return this.truncateToValidJSON(jsonText);
+          }
+        }
+      }
+      
+      // Для других ошибок пытаемся обрезать до последней валидной части
+      return this.truncateToValidJSON(jsonText);
+    }
+  }
+
+  private truncateToValidJSON(jsonText: string): string {
+    // Пытаемся найти последний валидный объект/массив
+    for (let i = jsonText.length - 1; i >= 0; i--) {
+      if (jsonText[i] === '}' || jsonText[i] === ']') {
+        const candidate = jsonText.slice(0, i + 1);
+        try {
+          JSON.parse(candidate);
+          return candidate;
+        } catch {
+          continue;
+        }
+      }
+    }
+    
+    // Если ничего не найдено, возвращаем минимальный валидный JSON
+    return '{"reviews":[]}';
   }
 
   private validateSeverity(severity: string): 'info' | 'warning' | 'error' {
