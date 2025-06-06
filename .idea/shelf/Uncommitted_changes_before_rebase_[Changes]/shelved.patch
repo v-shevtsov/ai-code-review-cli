@@ -1,0 +1,105 @@
+Index: README.md
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+># AI Code Review CLI\n\n\uD83E\uDD16 CLI tool for automated code review using local AI models (Ollama).\n\n## Features\n\n- \uD83E\uDD16 **Local AI Analysis** - Uses local AI models via Ollama (privacy-first)\n- \uD83D\uDD0D **Smart Detection** - Finds bugs, performance issues, security vulnerabilities\n- \uD83D\uDCDD **Multiple Modes** - Analyze unstaged changes, staged files, or specific commits\n- ⚙\uFE0F **Configurable** - Flexible configuration via config files\n- \uD83C\uDFA8 **Beautiful Output** - Colored output with icons and severity levels\n- \uD83D\uDE80 **Multi-language** - Supports TypeScript, JavaScript, Python, Go, Rust, Java, C++, and more\n- \uD83D\uDD04 **CI/CD Ready** - Perfect for pre-commit hooks and GitHub Actions\n\n## Installation\n\n### 1. Install Ollama\n\n```bash\n# macOS/Linux\ncurl -fsSL https://ollama.ai/install.sh | sh\n\n# Windows - download from https://ollama.ai/\n```\n\n### 2. Download AI Model\n\n```bash\n# Recommended model for code review\nollama pull codellama:13b-instruct\n\n# Or lightweight alternative\nollama pull codellama:7b-instruct\n```\n\n### 3. Install CLI Tool\n\n```bash\n# Clone repository\ngit clone <repository-url>\ncd ai-code-review-cli\n\n# Install dependencies\nnpm install\n\n# Build\nnpm run build\n\n# Global installation\nnpm link\n```\n\n## Quick Start\n\n```bash\n# Start Ollama server (if not running)\nollama serve\n\n# Analyze current changes\nai-code-review review\n\n# Analyze staged changes\nai-code-review review --staged\n\n# Analyze specific commit\nai-code-review review --commit abc123\n```\n\n## Usage\n\n### Basic Commands\n\n```bash\n# Analyze unstaged changes\nai-code-review review\n\n# Analyze staged changes\nai-code-review review --staged\n\n# Analyze specific commit\nai-code-review review --commit <hash>\n\n# Quiet mode (errors only)\nai-code-review review --quiet\n\n# Skip health check\nai-code-review review --no-health-check\n```\n\n### Configuration Commands\n\n```bash\n# Show current configuration\nai-code-review config\n\n# Create configuration file\nai-code-review config --init\n\n# Check AI service status\nai-code-review health\n```\n\n## Configuration\n\nCreate `.ai-code-reviewrc.cjs` in your project root:\n\n```javascript\nmodule.exports = {\n  modelUrl: 'http://localhost:11434',\n  modelName: 'codellama:13b-instruct',\n  maxTokens: 4096,\n  temperature: 0.05,\n  maxFileSize: 1000000, // 1MB\n  timeout: 120000, // 2 minutes\n\n  includePatterns: [\n    '\\\\.(ts|tsx|js|jsx|py|go|rs|java|cpp|hpp|cs|rb|php|swift|kt)$'\n  ],\n\n  excludePatterns: [\n    'node_modules/',\n    'dist/',\n    'build/',\n    '\\\\.test\\\\.',\n    '\\\\.spec\\\\.',\n    'package-lock\\\\.json'\n  ],\n\n  reviewPrompt: `You are a senior developer conducting code review. \nAnalyze the code and find:\n\n\uD83D\uDC1B Bugs and logical errors\n⚡ Performance issues  \n\uD83D\uDD12 Security vulnerabilities\n\uD83D\uDCDA Architectural principle violations\n✨ Improvement opportunities\n\uD83C\uDFA8 Code style issues\n\nFocus on critical issues. Be specific and suggest solutions.`\n};\n```\n\n### Configuration Options\n\n| Option | Description | Default |\n|--------|-------------|---------|\n| `modelUrl` | Ollama server URL | `http://localhost:11434` |\n| `modelName` | AI model to use | `codellama:7b-instruct` |\n| `maxTokens` | Maximum tokens per request | `2048` |\n| `temperature` | AI creativity (0-1) | `0.1` |\n| `maxFileSize` | Max file size in bytes | `500000` |\n| `timeout` | Request timeout in ms | `120000` |\n| `includePatterns` | Files to include (regex) | `[]` |\n| `excludePatterns` | Files to exclude (regex) | Common ignore patterns |\n| `reviewPrompt` | Custom AI prompt | Default review prompt |\n\n## Examples\n\n### Pre-commit Hook\n\n```bash\n#!/bin/sh\n# .git/hooks/pre-commit\nai-code-review review --staged --quiet\nexit $?\n```\n\nMake it executable:\n```bash\nchmod +x .git/hooks/pre-commit\n```\n\n\n### Custom Rules\n\nCreate specialized configurations for different projects:\n\n```javascript\n// .ai-code-reviewrc.security.cjs - Security focused\nmodule.exports = {\n  modelName: 'codellama:13b-instruct',\n  reviewPrompt: `You are a security expert reviewing code.\nFocus ONLY on:\n\uD83D\uDD12 Security vulnerabilities\n\uD83D\uDEE1\uFE0F Input validation issues\n\uD83D\uDD10 Authentication/authorization problems\n\uD83D\uDC89 Injection vulnerabilities\n\uD83D\uDD13 Sensitive data exposure\n\nRate severity as: critical, high, medium, low.`\n};\n```\n\n```javascript\n// .ai-code-reviewrc.performance.cjs - Performance focused\nmodule.exports = {\n  modelName: 'codellama:13b-instruct',\n  reviewPrompt: `You are a performance optimization expert.\nFocus ONLY on:\n⚡ Performance bottlenecks\n\uD83D\uDD04 Inefficient algorithms\n\uD83D\uDCBE Memory leaks\n\uD83D\uDDC4\uFE0F Database query optimization\n\uD83D\uDCC8 Scalability issues`\n};\n```\n\n## Output Example\n\n```\n\uD83D\uDCC1 Found 3 files for analysis\n\n\uD83D\uDCCB Analysis results (3 files):\n\n\uD83D\uDCC1 src/auth.js\n  ❌ Using eval() can lead to code injection vulnerabilities (line 12) [security]\n    \uD83D\uDCA1 Use JSON.parse() or a safer alternative for parsing data\n  ⚠\uFE0F Synchronous file operations block the event loop (line 25) [performance]\n    \uD83D\uDCA1 Use fs.readFileSync() → fs.promises.readFile() for async operation\n\n\uD83D\uDCC1 src/utils.ts\n  ℹ\uFE0F Consider using const assertion for better type safety (line 8) [style]\n    \uD83D\uDCA1 Change 'as string[]' to 'as const'\n\n\uD83D\uDCC1 src/api.py\n  ❌ SQL query vulnerable to injection (line 34) [security]\n    \uD83D\uDCA1 Use parameterized queries or ORM methods\n\n\uD83D\uDCCA Summary: 2 errors, 1 warnings, 1 info\n```\n\n## Supported Models\n\n### Recommended Models\n\n| Model | Size | Speed | Quality | Use Case |\n|-------|------|-------|---------|----------|\n| `codellama:7b-instruct` | 3.8GB | Fast | Good | Quick reviews, CI/CD |\n| `codellama:13b-instruct` | 7.3GB | Medium | Better | Detailed reviews |\n| `codellama:34b-instruct` | 19GB | Slow | Best | Comprehensive analysis |\n\n### Custom Models\n\nYou can use other code-focused models:\n- `deepseek-coder:6.7b-instruct`\n- `starcoder2:7b-instruct`\n- `codeqwen:7b-instruct`\n\n## Troubleshooting\n\n### Common Issues\n\n#### Ollama Not Running\n```bash\n# Start Ollama server\nollama serve\n\n# Check if running\ncurl http://localhost:11434/api/tags\n```\n\n#### Model Not Found\n```bash\n# List available models\nollama list\n\n# Pull missing model\nollama pull codellama:7b-instruct\n\n# Check model status\nai-code-review health\n```\n\n#### Slow Analysis\n- Use smaller model: `codellama:7b-instruct`\n- Reduce `maxTokens` in config\n- Add more patterns to `excludePatterns`\n- Increase `maxFileSize` limit\n\n#### No Changes Detected\n```bash\n# Check git status\ngit status\n\n# Ensure you're in a git repository\ngit init\n\n# For unstaged changes\ngit add -N <new-files>\n\n# For staged analysis\ngit add <files>\nai-code-review review --staged\n```\n\n#### Memory Issues\n```bash\n# Monitor Ollama memory usage\ndocker stats # if using Docker\nps aux | grep ollama\n\n# Use smaller model\nollama pull codellama:7b-instruct\n```\n\n### Error Messages\n\n| Error | Solution |\n|-------|----------|\n| `Current directory is not a Git repository` | Run `git init` or navigate to git repo |\n| `Ollama server unavailable` | Start with `ollama serve` |\n| `Model not found` | Download with `ollama pull <model>` |\n| `Timeout when calling AI model` | Increase `timeout` in config |\n| `File too large for analysis` | Increase `maxFileSize` or exclude file |\n\n## Performance Tips\n\n1. **Use appropriate model size** for your hardware\n2. **Configure file exclusions** to skip unnecessary files\n3. **Set reasonable timeouts** based on model speed\n4. **Use staged analysis** for faster CI/CD pipelines\n5. **Run health checks** before important analysis\n\n## Advanced Usage\n\n### Custom Prompts for Different Languages\n\n```javascript\n// Language-specific prompts\nconst prompts = {\n  javascript: `Focus on: async/await usage, memory leaks, security vulnerabilities`,\n  python: `Focus on: PEP 8 compliance, security issues, performance bottlenecks`,\n  rust: `Focus on: unsafe code, borrowing issues, performance optimizations`,\n  go: `Focus on: goroutine leaks, error handling, concurrency issues`\n};\n```\n\n### Integration with IDEs\n\nUse with VS Code tasks:\n\n```json\n// .vscode/tasks.json\n{\n  \"version\": \"2.0.0\",\n  \"tasks\": [\n    {\n      \"label\": \"AI Code Review\",\n      \"type\": \"shell\",\n      \"command\": \"ai-code-review\",\n      \"args\": [\"review\", \"--quiet\"],\n      \"group\": \"build\",\n      \"presentation\": {\n        \"echo\": true,\n        \"reveal\": \"always\",\n        \"focus\": false,\n        \"panel\": \"shared\"\n      }\n    }\n  ]\n}\n```\n\n## Contributing\n\n1. Fork the repository\n2. Create feature branch (`git checkout -b feature/amazing-feature`)\n3. Commit changes (`git commit -m 'Add amazing feature'`)\n4. Push to branch (`git push origin feature/amazing-feature`)\n5. Open Pull Request\n\n## License\n\nMIT License - see [LICENSE](LICENSE) file for details.\n\n## Acknowledgments\n\n- [Ollama](https://ollama.ai/) for local AI model hosting\n- [CodeLlama](https://github.com/facebookresearch/codellama) for code understanding\n- Contributors and testers\n\n---\n\n**Made with ❤\uFE0F for developers who care about code quality** \n
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/README.md b/README.md
+--- a/README.md	(revision 388bf7e1e39a64f3806b32a3536557ecac47ba8c)
++++ b/README.md	(date 1749190139482)
+@@ -36,18 +36,14 @@
+ ### 3. Install CLI Tool
+ 
+ ```bash
+-# Clone repository
+-git clone <repository-url>
+-cd ai-code-review-cli
++# Install globally from npm
++npm install -g @your-username/ai-code-review-cli
+ 
+-# Install dependencies
+-npm install
++# Or install locally in project
++npm install --save-dev @your-username/ai-code-review-cli
+ 
+-# Build
+-npm run build
+-
+-# Global installation
+-npm link
++# Or use npx (no installation required)
++npx @your-username/ai-code-review-cli review
+ ```
+ 
+ ## Quick Start
+Index: package.json
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>{\n  \"name\": \"ai-code-review-cli\",\n  \"version\": \"1.0.0\",\n  \"description\": \"CLI tool for code review with local AI model\",\n  \"type\": \"module\",\n  \"main\": \"dist/cli.js\",\n  \"bin\": {\n    \"ai-code-review\": \"./dist/cli.js\"\n  },\n  \"scripts\": {\n    \"build\": \"tsc\",\n    \"dev\": \"ts-node src/cli.ts\",\n    \"start\": \"node dist/cli.js\"\n  },\n  \"dependencies\": {\n    \"commander\": \"^11.0.0\",\n    \"simple-git\": \"^3.19.1\",\n    \"axios\": \"^1.7.7\",\n    \"chalk\": \"^5.3.0\",\n    \"ora\": \"^7.0.1\",\n    \"cosmiconfig\": \"^8.3.5\"\n  },\n  \"devDependencies\": {\n    \"@types/node\": \"^20.0.0\",\n    \"typescript\": \"^5.0.0\",\n    \"ts-node\": \"^10.9.0\"\n  },\n  \"keywords\": [\"ai\", \"code-review\", \"cli\", \"git\", \"ollama\"],\n  \"author\": \"\",\n  \"license\": \"MIT\"\n} \n
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/package.json b/package.json
+--- a/package.json	(revision 388bf7e1e39a64f3806b32a3536557ecac47ba8c)
++++ b/package.json	(date 1749190568051)
+@@ -1,12 +1,17 @@
+ {
+-  "name": "ai-code-review-cli",
+-  "version": "1.0.0",
+-  "description": "CLI tool for code review with local AI model",
++  "name": "@woobbe/ai-code-review-cli",
++  "version": "0.0.1",
++  "description": "CLI tool for automated code review using local AI models (Ollama). Finds bugs, security issues, and performance problems.",
+   "type": "module",
+   "main": "dist/cli.js",
+   "bin": {
+     "ai-code-review": "./dist/cli.js"
+   },
++  "files": [
++    "dist/**/*",
++    "README.md",
++    "LICENSE"
++  ],
+   "scripts": {
+     "build": "tsc",
+     "dev": "ts-node src/cli.ts",
+@@ -25,7 +30,35 @@
+     "typescript": "^5.0.0",
+     "ts-node": "^10.9.0"
+   },
+-  "keywords": ["ai", "code-review", "cli", "git", "ollama"],
+-  "author": "",
+-  "license": "MIT"
++  "keywords": [
++    "ai",
++    "code-review", 
++    "cli",
++    "git",
++    "ollama",
++    "static-analysis",
++    "security",
++    "performance",
++    "typescript",
++    "javascript",
++    "python",
++    "automation",
++    "developer-tools"
++  ],
++  "author": "Your Name <your.email@example.com>",
++  "license": "MIT",
++  "repository": {
++    "type": "git",
++    "url": "git+https://github.com/your-username/ai-code-review-cli.git"
++  },
++  "bugs": {
++    "url": "https://github.com/your-username/ai-code-review-cli/issues"
++  },
++  "homepage": "https://github.com/your-username/ai-code-review-cli#readme",
++  "engines": {
++    "node": ">=18.0.0"
++  },
++  "publishConfig": {
++    "access": "public"
++  }
+ } 
